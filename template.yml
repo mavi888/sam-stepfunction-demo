@@ -1,0 +1,89 @@
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  TranscribedBucketName:
+    Type: String
+    Default: ''
+  TranslateBucketName:
+    Type: String
+    Default: ''
+  GetSignedURLFunctionName:
+    Type: String
+    Default: ''
+  NotificationTopicName:
+    Type: String
+    Default: ''
+  NotificationTopicARN:
+    Type: String
+    Default: ''
+Resources:
+  TranslateStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt TranslateStateMachineLogGroup.Arn
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref TranscribedBucketName
+        - S3WritePolicy:
+            BucketName: !Ref TranscribedBucketName
+        - S3ReadPolicy:
+            BucketName: !Ref TranslateBucketName
+        - S3WritePolicy:
+            BucketName: !Ref TranslateBucketName
+        - SNSPublishMessagePolicy:
+            TopicName: !Ref NotificationTopicName
+        - LambdaInvokePolicy:
+            FunctionName: !Ref GetSignedURLFunctionName
+        - AWSXrayWriteOnlyAccess
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogDelivery
+                - logs:GetLogDelivery
+                - logs:UpdateLogDelivery
+                - logs:DeleteLogDelivery
+                - logs:ListLogDeliveries
+                - logs:PutResourcePolicy
+                - logs:DescribeResourcePolicies
+                - logs:DescribeLogGroups
+              Resource: '*'
+            - Sid: JobPolicy
+              Effect: Allow
+              Action:
+                - translate:TranslateText
+              Resource: '*'
+      Tracing:
+        Enabled: true
+      Type: STANDARD
+      DefinitionSubstitutions:
+        TranslateBucket: !Ref TranslateBucketName
+        GetSignedUrlFunction: !Ref GetSignedURLFunctionName
+        NotificationTopic: !Ref NotificationTopicARN
+      Events:
+        S3MediaTrigger:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: default
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Ref TranscribedBucketName
+                object:
+                  key:
+                    - prefix: validated/
+      DefinitionUri: stateMachine.asl.yaml
+  TranslateStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub
+        - /aws/vendedlogs/states/${AWS::StackName}-${ResourceId}-Logs
+        - ResourceId: TranslateStateMachine
