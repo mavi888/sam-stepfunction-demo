@@ -1,0 +1,12 @@
+{
+	"name": "sam-stepfunction-demo",
+	"version": "1.0.0",
+	"description": "_Infrastructure as code framework used_: AWS SAM _AWS Services used_: AWS Step Functions",
+	"main": "index.js",
+	"licence": "MIT",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "Marcia Villalba"
+}
